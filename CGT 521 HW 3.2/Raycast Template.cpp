@@ -118,11 +118,40 @@ void draw_gui()
    ImGui::SliderFloat("View angle", &angle, -3.141592f, +3.141592f);
    ImGui::SliderFloat("FOV", &fov, 0.0f, +3.141592f);
 
-   static glm::vec4 slider(0.0f);
-   if(ImGui::SliderFloat4("Slider", &slider[0], -1.0f, +1.0f))
+   static float m = 0.2f;
+   if (ImGui::SliderFloat("m", &m, 0.001f, 1.0f))
    {
-      glUniform4fv(UniformLoc::Slider, 1, &slider[0]);
+	   glUniform1f(UniformLoc::m, m);
    }
+
+   static glm::vec4 Ka(0.25, 0.2, 0.15, 1.0);
+   if (ImGui::ColorEdit3("Ka", &Ka[0]))
+   {
+	   glUniform4fv(UniformLoc::Ka, 1, &Ka[0]);
+   }
+   static glm::vec4 Kd(0.3f, 0.3f, 0.0f, 1.0f);
+   if (ImGui::ColorEdit3("Kd", &Kd[0]))
+   {
+	   glUniform4fv(UniformLoc::Kd, 1, &Kd[0]);
+   }
+   static glm::vec4 Ks(1.0f, 1.0f, 1.0f, 1.0f);
+   if (ImGui::ColorEdit3("Ks", &Ks[0]))
+   {
+	   glUniform4fv(UniformLoc::Ks, 1, &Ks[0]);
+   }
+
+   static glm::vec4 F0(1.0f, 0.71f, 0.29f, 1.0f);
+   if (ImGui::ColorEdit3("F0", &F0[0]))
+   {
+	   glUniform4fv(UniformLoc::F0, 1, &F0[0]);
+   }
+
+   static int specMode = 0;
+   ImGui::RadioButton("See the full lighting model", &specMode, 0);
+   ImGui::RadioButton("See only the Fresnel factor", &specMode, 1);
+   ImGui::RadioButton("See only the Distribution factor", &specMode, 2);
+   ImGui::RadioButton("See only the Geometric attenuation factor", &specMode, 3);
+   glUniform1i(UniformLoc::specMode, specMode);
 
    ImGui::Render();
  }

@@ -5,6 +5,12 @@ layout(location = 3) uniform int mode = 0;
 layout(location = 6) uniform float time;
 layout(location = 7) uniform vec4 slider;
 layout(location = 8) uniform int scene = 0;
+layout(location = 9) uniform vec4 F0 = vec4(1.0f, 0.71f, 0.29f, 1.0f);
+layout(location = 10) uniform int specMode;
+layout(location = 11) uniform vec4 Ka = vec4(0.25, 0.2, 0.15, 1.0);
+layout(location = 12) uniform vec4 Kd = vec4(0.3, 0.3, 0.0, 1.0);
+layout(location = 13) uniform vec4 Ks = vec4(1.0, 1.0, 1.0, 1.0);
+layout(location = 14) uniform float m = 0.2f;
 
 layout(binding = 0) uniform sampler2D backfaces_tex;
 
@@ -18,18 +24,15 @@ vec4 clear_color(vec3 rayDir);
 vec4 lighting(vec3 pos, vec3 rayDir);
 float distToShape(vec3 pos);
 vec3 normal(vec3 pos);
+float calcSoftshadow( in vec3 ro, in vec3 rd, in float mint, in float tmax, int technique );
 
 const vec3 light_pos = vec3(5.0, 5.0, 5.0);
 
-const vec4 La = vec4(0.75, 0.75, 0.75, 1.0);
-const vec4 Ld = vec4(0.74, 0.74, 0.74, 1.0);
-const vec4 Ls = vec4(1.0, 1.0, 0.74, 1.0);
+const vec4 La = vec4(0.8, 0.8, 0.8, 1.0);
+const vec4 Ld = vec4(1.0, 1.0, 1.0, 1.0);
+const vec4 Ls = vec4(1.0, 1.0, 1.0, 1.0);
 
-const vec4 Ka = vec4(0.4, 0.4, 0.34, 1.0);
-const vec4 Kd = vec4(1.0, 1.0, 0.73, 1.0);
-const vec4 Ks = vec4(0.1, 0.1, 0.073, 1.0);
-
-float calcSoftshadow( in vec3 ro, in vec3 rd, in float mint, in float tmax, int technique );
+const float PI = 3.1415926535897932384626433832795;
 
 void main(void)
 {   
@@ -89,16 +92,31 @@ vec4 raytracedcolor(vec3 rayStart, vec3 rayStop)
 	return clear_color(rayDir);
 }
 
-//Compute lighting on the raycast surface using Phong lighting model
+float mdot(vec3 a, vec3 b)
+{
+	return max(1e-6, dot(a,b));
+}
+
+//Compute lighting on the raycast surface using Cook-Torrance Lighting model
 vec4 lighting(vec3 pos, vec3 rayDir)
 {
-	const vec3 light = normalize(light_pos-pos); //light direction from surface
+	vec3 v = -rayDir;
+	vec3 l = normalize(light_pos-pos); //light direction from surface
 	vec3 n = normal(pos);
+	vec3 h = normalize(l + v);
 
-	vec4 La = clear_color(n);
-	float diff = max(0.0, dot(n, light)) * calcSoftshadow( pos, light, 0.01, 3.0, 1 );             
+	float G = min(1.0f, min(2.0f*mdot(n,h)*mdot(n,v)/mdot(v,h), 2.0f*mdot(n,h)*mdot(n,l)/mdot(v,h)));
+	float D = exp((pow(mdot(n,h),2)-1.0f)/(m*m*pow(mdot(n,h),2))) / (4.0f*m*m*pow(mdot(n,h),4));
+	vec4  F = F0 + (vec4(1.0f) - F0) * pow(1-mdot(n,v),5);
 
-	return La*Ka + Ld*Kd*diff;	
+	float diff = max(0.0, mdot(n, l)) * calcSoftshadow( pos, l, 0.01, 3.0, 1 );  
+	vec4 spec = vec4(1.0f)/(PI*mdot(n,v));
+	if(specMode == 0) spec = 2 * spec * D * F * G;
+	else if(specMode == 1) spec *= F;
+	else if(specMode == 2) spec *= D;
+	else if(specMode == 3) spec *= G;
+
+	return La*Ka + Ld*Kd*diff + Ls*Ks*spec;	
 }
 
 vec4 clear_color(vec3 rayDir)
